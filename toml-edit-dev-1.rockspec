@@ -13,12 +13,13 @@ dependencies = {
     "lua >= 5.1",
 }
 
-test_dependencies = {
-    "lua >= 5.1",
-}
 
 build_dependencies = {
-  "luarocks-build-rust-mlua",
+  "luarocks-build-rust-mlua >= 0.1.0",
+}
+
+test_dependencies = {
+    "busted >= 2.0.0",
 }
 
 build = {
