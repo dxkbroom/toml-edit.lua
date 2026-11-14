@@ -1,0 +1,12 @@
+package = "toml-edit"
+version = "dev-1"
+lua = ">=5.1"
+
+[build]
+type = "rust-mlua"
+
+[build.modules]
+toml_edit = "toml_edit"
+
+[test_dependencies]
+busted = ">=2.0.0"
