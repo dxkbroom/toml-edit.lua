@@ -383,7 +383,7 @@ pub fn toml_edit(lua: &Lua) -> Result<mlua::Table> {
             _ => DocumentMut::new()
 
         };
-        crate::document::LuaDocument::new(doc).into_lua(lua)
+        crate::document::DocumentLua::new(doc).into_lua(lua)
     })?)?;
     table.set(
         "parse",
