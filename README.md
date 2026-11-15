@@ -62,6 +62,7 @@ Using luarocks:
 mkdir luarocks
 luarocks make --tree=luarocks
 luarocks test --tree=luarocks
+cargo test --features=lua51
 ```
 
 [luarocks-shield]: https://img.shields.io/luarocks/v/neorg/toml-edit?logo=lua&color=purple&style=for-the-badge

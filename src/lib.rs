@@ -498,3 +498,255 @@ pub fn toml_edit(lua: &Lua) -> Result<mlua::Table> {
     )?;
     Ok(table)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // --- Tests recreating the failing Lua test: "Can read from table array" ---
+    // The Lua test parses [[specs]] array of tables and accesses result.specs[1].schema
+    // These tests use toml_edit directly, without the Lua bindings layer.
+
+    #[test]
+    fn parse_array_of_tables_basic() {
+        // [[specs]] creates an Item::ArrayOfTables, not Item::Value(Array)
+        let toml_content = r#"
+[[specs]]
+schema = "1.0.0"
+
+[[specs]]
+schema = "2.0.0"
+"#;
+        let doc: DocumentMut = toml_content.parse().expect("should parse TOML");
+
+        let specs_item = doc.get("specs").expect("specs key should exist");
+        let aot = specs_item.as_array_of_tables().expect("specs should be an array of tables");
+        assert_eq!(aot.len(), 2, "specs should have 2 elements");
+
+        // Access first element: specs[0].schema = "1.0.0"
+        let first = aot.iter().nth(0).expect("specs[0] should exist");
+        let schema1 = first.get("schema")
+            .expect("schema in specs[0]")
+            .as_value()
+            .expect("schema should be a value")
+            .as_str()
+            .expect("schema should be a string");
+        assert_eq!(schema1, "1.0.0");
+
+        // Access second element: specs[1].schema = "2.0.0"
+        let second = aot.iter().nth(1).expect("specs[1] should exist");
+        let schema2 = second.get("schema")
+            .expect("schema in specs[1]")
+            .as_value()
+            .expect("schema should be a value")
+            .as_str()
+            .expect("schema should be a string");
+        assert_eq!(schema2, "2.0.0");
+    }
+
+    #[test]
+    fn parse_array_of_tables_document_as_item() {
+        // Use as_item() path like the Lua bindings do
+        let toml_content = r#"
+[[specs]]
+schema = "1.0.0"
+
+[[specs]]
+schema = "2.0.0"
+"#;
+        let doc: DocumentMut = toml_content.parse().expect("should parse TOML");
+
+        let root = doc.as_item();
+        let root_table = root.as_table_like().expect("root should be table-like");
+        let specs_item = root_table.get("specs").expect("specs should exist");
+
+        // [[specs]] is an ArrayOfTables, not a Value::Array
+        let aot = specs_item.as_array_of_tables().expect("specs should be array of tables");
+
+        let first = aot.iter().nth(0).expect("specs[0] should exist");
+        let schema1 = first.get("schema")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("specs[0].schema should be a string");
+        assert_eq!(schema1, "1.0.0");
+
+        let second = aot.iter().nth(1).expect("specs[1] should exist");
+        let schema2 = second.get("schema")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("specs[1].schema should be a string");
+        assert_eq!(schema2, "2.0.0");
+    }
+
+    #[test]
+    fn parse_array_of_tables_multiple_fields() {
+        let toml_content = r#"
+[[users]]
+name = "john"
+age = 30
+
+[[users]]
+name = "doe"
+age = 25
+"#;
+        let doc: DocumentMut = toml_content.parse().expect("should parse TOML");
+
+        let root = doc.as_item();
+        let root_table = root.as_table_like().expect("root should be table-like");
+        let aot = root_table.get("users")
+            .expect("users should exist")
+            .as_array_of_tables()
+            .expect("users should be array of tables");
+
+        assert_eq!(aot.len(), 2);
+
+        let first = aot.iter().nth(0).expect("users[0] should exist");
+        let name1 = first.get("name")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("users[0].name");
+        let age1 = first.get("age")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_integer())
+            .expect("users[0].age");
+        assert_eq!(name1, "john");
+        assert_eq!(age1, 30);
+
+        let second = aot.iter().nth(1).expect("users[1] should exist");
+        let name2 = second.get("name")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("users[1].name");
+        let age2 = second.get("age")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_integer())
+            .expect("users[1].age");
+        assert_eq!(name2, "doe");
+        assert_eq!(age2, 25);
+    }
+
+    #[test]
+    fn parse_array_of_tables_nested() {
+        let toml_content = r#"
+[[projects]]
+name = "alpha"
+
+[projects.metadata]
+version = "1.0"
+
+[[projects]]
+name = "beta"
+
+[projects.metadata]
+version = "2.0"
+"#;
+        let doc: DocumentMut = toml_content.parse().expect("should parse TOML");
+
+        let root = doc.as_item();
+        let root_table = root.as_table_like().expect("root should be table-like");
+        let aot = root_table.get("projects")
+            .expect("projects should exist")
+            .as_array_of_tables()
+            .expect("projects should be array of tables");
+
+        assert_eq!(aot.len(), 2);
+
+        let first = aot.iter().nth(0).expect("projects[0] should exist");
+        let name1 = first.get("name")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("projects[0].name");
+        assert_eq!(name1, "alpha");
+
+        // Nested table inside array element
+        let metadata = first.get("metadata")
+            .expect("projects[0].metadata should exist")
+            .as_table_like()
+            .expect("metadata should be table-like");
+        let version1 = metadata.get("version")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("projects[0].metadata.version");
+        assert_eq!(version1, "1.0");
+
+        let second = aot.iter().nth(1).expect("projects[1] should exist");
+        let name2 = second.get("name")
+            .and_then(|v| v.as_value())
+            .and_then(|v| v.as_str())
+            .expect("projects[1].name");
+        assert_eq!(name2, "beta");
+    }
+
+    #[test]
+    fn parse_simple_array_still_works() {
+        // Ensure basic arrays (non-table) still work — these ARE Value::Array
+        let toml_content = r#"
+my_arr = ["item1", "item2", "item3"]
+"#;
+        let doc: DocumentMut = toml_content.parse().expect("should parse TOML");
+
+        let root = doc.as_item();
+        let root_table = root.as_table_like().expect("root should be table-like");
+        let arr_value = root_table.get("my_arr")
+            .expect("my_arr should exist")
+            .as_value()
+            .expect("my_arr should be a value");
+        let arr = arr_value.as_array().expect("my_arr should be an array");
+
+        assert_eq!(arr.len(), 3);
+        assert_eq!(arr.get(0).unwrap().as_str().unwrap(), "item1");
+        assert_eq!(arr.get(1).unwrap().as_str().unwrap(), "item2");
+        assert_eq!(arr.get(2).unwrap().as_str().unwrap(), "item3");
+    }
+
+    #[test]
+    fn parse_array_of_tables_roundtrip() {
+        // Verify the document round-trips correctly
+        let toml_content = r#"
+[[specs]]
+schema = "1.0.0"
+
+[[specs]]
+schema = "2.0.0"
+"#;
+        let doc: DocumentMut = toml_content.parse().expect("should parse TOML");
+        let output = doc.to_string();
+        // Re-parse and verify
+        let doc2: DocumentMut = output.parse().expect("re-parsed document should be valid");
+        let specs = doc2.get("specs").expect("specs should exist");
+        let aot = specs.as_array_of_tables().expect("specs should be array of tables");
+        assert_eq!(aot.len(), 2);
+    }
+
+    #[test]
+    fn array_of_tables_vs_inline_array_distinction() {
+        // Key finding: [[key]] creates Item::ArrayOfTables
+        // while key = [...] creates Item::Value(Array)
+        // The Lua bindings need to handle both paths.
+
+        let toml_aot = r#"
+[[items]]
+name = "a"
+
+[[items]]
+name = "b"
+"#;
+        let toml_inline = r#"
+items = [{ name = "a" }, { name = "b" }]
+"#;
+
+        let doc_aot: DocumentMut = toml_aot.parse().expect("should parse AOT");
+        let doc_inline: DocumentMut = toml_inline.parse().expect("should parse inline");
+
+        let aot_item = doc_aot.get("items").expect("items should exist");
+        let inline_item = doc_inline.get("items").expect("items should exist");
+
+        // [[items]] is an ArrayOfTables
+        assert!(aot_item.as_array_of_tables().is_some(), "[[items]] should be ArrayOfTables");
+        assert!(aot_item.as_value().is_none(), "[[items]] should NOT be a Value");
+
+        // items = [...] is a Value::Array of InlineTables
+        assert!(inline_item.as_value().is_some(), "items = [...] should be a Value");
+        assert!(inline_item.as_array_of_tables().is_none(), "items = [...] should NOT be ArrayOfTables");
+    }
+}
