@@ -1,8 +1,10 @@
 use itertools::Itertools;
-use mlua::{ExternalError, Lua, LuaSerdeExt, Result, Table, Value};
+use mlua::{ExternalError, IntoLua, Lua, LuaSerdeExt, Result, Table, Value};
 use std::cell::RefCell;
 use std::rc::Rc;
 use toml_edit::{Document, DocumentMut, Key};
+
+mod document;
 
 // TODO: Better error messages
 
@@ -371,6 +373,18 @@ pub fn parse(lua: &Lua, document: Rc<RefCell<DocumentMut>>) -> Result<mlua::Tabl
 #[mlua::lua_module]
 pub fn toml_edit(lua: &Lua) -> Result<mlua::Table> {
     let table = lua.create_table()?;
+    table.set("document", lua.create_function(|lua, value: Value| {
+        let doc: DocumentMut = match value {
+            Value::String(str) => match str.to_string_lossy().parse() {
+                Ok(document) => document,
+                Err(err) => return Err(err.into_lua_err()),
+
+            },
+            _ => DocumentMut::new()
+
+        };
+        crate::document::LuaDocument::new(doc).into_lua(lua)
+    })?)?;
     table.set(
         "parse",
         lua.create_function(|lua, str: mlua::String| {

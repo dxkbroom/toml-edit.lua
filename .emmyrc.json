@@ -2,6 +2,7 @@
   "$schema": "https://raw.githubusercontent.com/EmmyLuaLs/emmylua-analyzer-rust/master/emmylua.schema.json",
   "workspace": {
     "library": [
+      "./definitions/",
       ".lux/5.5/test_dependencies/5.5/01a3c364614bddff7370223a5a9c4580f8e62d144384148444c518ec5367a59b-mediator_lua@1.1.2-0/src",
       ".lux/5.5/test_dependencies/5.5/0c1551a18e14018d6694a82036fac28c807e983f9d357c5d5ad377328324cef3-dkjson@2.11-1/src",
       ".lux/5.5/test_dependencies/5.5/287e827f4a088d41bba04af5f61a13614346c16fe8150eb7c4246e67d6fd163e-lua-term@0.8-1/lib",
