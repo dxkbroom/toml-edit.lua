@@ -20,7 +20,18 @@ end
 function toml_edit.document(str)
 end
 
---- @class toml_edit.Document
+--- @alias toml_edit.Value nil | string | number | boolean | toml_edit.Value[] | table<string, toml_edit.Value> | toml_edit.Datetime
+
+--- @class toml_edit.Datetime
+
+--- @class toml_edit.Item
+--- @field value toml_edit.Value The lua representation of the TOML
+
+--- @class toml_edit.Collection
+--- @field value toml_edit.Value The lua representation of the TOML
+--- @field trailing string Content after the last key-vaue pair
+
+--- @class toml_edit.Document : toml_edit.Item, toml_edit.Collection
 local Document = {}
 
 --- Auto formats the table.

@@ -80,6 +80,7 @@ function mock(object, stub_methods) end
 ---@field is_true fun(value: any, message?: string)
 ---@field is_false fun(value: any, message?: string)
 ---@field is_function fun(value: any, message?: string)
+---@field is_table fun(value: any, message?: string)
 ---@field is_userdata fun(value: any, message?: string)
 ---@field is_nil fun(value: any, message?: string)
 ---@field is_not_nil fun(value: any, message?: string)
